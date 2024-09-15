@@ -1,10 +1,9 @@
-from rest_framework.serializers import Serializer, FileField, Field
+from rest_framework.serializers import Serializer, FileField, Field, ModelSerializer
+
+from app.models import Upload
 
 
-class UploadSerializer(Serializer):
-    name = Field()
-    description = Field()
-    source_file = FileField()
-    target_file = FileField()
+class UploadSerializer(ModelSerializer):
     class Meta:
-        fields = ['source_file', 'target_file']
+        model = Upload
+        fields = ['source_file', 'target_file', 'title', 'description']

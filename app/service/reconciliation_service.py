@@ -4,9 +4,19 @@ import os
 import dateparser
 from rest_framework.exceptions import NotFound
 
+from app.models import Upload, Record
+
 
 class ReconciliationService:
-    def reconcile(self, source_file, target_file):
+
+    def __init__(self):
+        self.upload_model = Upload.objects
+        self.record_model = Record.objects
+        pass
+
+    def reconcile(self, data):
+        source_file = data['source_file']
+        target_file = data['target_file']
         source_file_path = default_storage.save('uploads/' + source_file.name, source_file)
         target_file_path = default_storage.save('uploads/' + target_file.name, target_file)
 
@@ -14,16 +24,28 @@ class ReconciliationService:
         source_df = pd.read_csv(source_file_path)
         target_df = pd.read_csv(target_file_path)
 
+        upload = self.upload_model.create(source_file=source_file_path, target_file=target_file_path, title=data['title'],
+                                 description=data['description'])
         # Perform reconciliation
-        report = self.reconcile_data(source_df, target_df)
+        report = self.reconcile_data(upload.id,source_df, target_df)
+
+        # update upload record
+        upload.refresh_from_db()
+        upload.missing_in_target = report['missing_in_target']
+        upload.missing_in_source = report['missing_in_source']
+        upload.discrepancies = report['discrepancies']
+        upload.save(update_fields=['missing_in_target', 'missing_in_source', 'discrepancies'])
+
+        # upload.update_report(report)
         # print(report);
 
         # Clean up the files after processing
         os.remove(source_file_path)
         os.remove(target_file_path)
+
         return report
 
-    def reconcile_data(self, source, target):
+    def reconcile_data(self, upload_id, source, target):
         source_df = pd.DataFrame(self.__normalise_data(source))
         target_df = pd.DataFrame(self.__normalise_data(target))
 
@@ -32,7 +54,7 @@ class ReconciliationService:
         target_ids = set(target_df['id'])
 
         # find records in both
-        same_records = []
+        reconciled_records = []
 
         # Find records missing in the target
         missing_in_target = source_df[~source_df['id'].isin(target_ids)].to_dict(orient='records')
@@ -52,15 +74,26 @@ class ReconciliationService:
                     diff[col] = {'source': source_row[col], 'target': target_row[col]}
             if diff:
                 discrepancies.append({'id': common_id, 'differences': diff})
-            same_records.append(source_row)
+
+            reconciled_records.append({
+                'name': source_row['name'],
+                'account_number': source_row['account_number'],
+                'transaction_date': source_row['transaction_date'],
+                'balance': source_row['balance'],
+                'description': source_row['description'],
+                "upload_id": upload_id,
+            })
 
         # save same records to db
+        self.record_model.bulk_create([
+            Record(**values) for values in reconciled_records
+        ], batch_size=100)
 
         # Return the reconciliation report
         return {
             "missing_in_target": missing_in_target,
             "missing_in_source": missing_in_source,
-            "discrepancies": discrepancies
+            "discrepancies": discrepancies,
         }
 
     def __normalise_data(self, csv_data):
@@ -81,7 +114,7 @@ class ReconciliationService:
                     row[col] = column_data.strip().strip("/").lower()
 
                 # format date
-                if col == 'created_date':
+                if col == 'transaction_date':
                     row[col] = self.__format_date(column_data)
 
                 data_dict[index] = row
@@ -89,7 +122,7 @@ class ReconciliationService:
 
     def __format_date(self, date_str) -> str:
         parsed_date = dateparser.parse(date_str)
-        return parsed_date.strftime("%a %d, %Y")
+        return parsed_date.strftime("%Y-%m-%d")
 
     def __validate_columns(self, columns):
         pass

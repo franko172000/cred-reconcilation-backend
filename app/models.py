@@ -5,9 +5,9 @@ from django.db import models
 
 # Create your models here.
 class Upload(models.Model):
-    title = models.CharField(max_length=100)
-    source = models.FileField(upload_to='uploads/')
-    target = models.FileField(upload_to='uploads/')
+    title = models.CharField(max_length=100, blank=False, null=False)
+    source_file = models.FileField(upload_to='uploads/')
+    target_file = models.FileField(upload_to='uploads/')
     description = models.TextField(blank=True, null=True)
     discrepancies = models.JSONField(blank=True, null=True)
     missing_in_source = models.JSONField(blank=True, null=True)
