@@ -31,10 +31,13 @@ class ReconciliationService:
         source_ids = set(source_df['id'])
         target_ids = set(target_df['id'])
 
+        # find records in both
+        same_records = []
+
         # Find records missing in the target
         missing_in_target = source_df[~source_df['id'].isin(target_ids)].to_dict(orient='records')
-        #
-        # # Find records missing in the source
+
+        # Find records missing in the source
         missing_in_source = target_df[~target_df['id'].isin(source_ids)].to_dict(orient='records')
 
         # Find discrepancies (comparing rows with the same ID)
@@ -45,11 +48,13 @@ class ReconciliationService:
 
             diff = {}
             for col in source_row.keys():
-                print(target_row[col])
                 if source_row[col] != target_row[col]:
                     diff[col] = {'source': source_row[col], 'target': target_row[col]}
             if diff:
                 discrepancies.append({'id': common_id, 'differences': diff})
+            same_records.append(source_row)
+
+        # save same records to db
 
         # Return the reconciliation report
         return {
@@ -67,11 +72,14 @@ class ReconciliationService:
                 column_data = row[col]
                 column_df = pd.DataFrame(row, index=[index])
 
+                # check for is NaN values
                 if column_df[col].isna().bool():
                     data_dict[index][col] = 'no data'
+
                 if type(column_data) == str:
                     # trim and strip slashes
                     row[col] = column_data.strip().strip("/").lower()
+
                 # format date
                 if col == 'created_date':
                     row[col] = self.__format_date(column_data)
@@ -82,3 +90,6 @@ class ReconciliationService:
     def __format_date(self, date_str) -> str:
         parsed_date = dateparser.parse(date_str)
         return parsed_date.strftime("%a %d, %Y")
+
+    def __validate_columns(self, columns):
+        pass

@@ -1,7 +1,9 @@
-from rest_framework.serializers import Serializer, FileField
+from rest_framework.serializers import Serializer, FileField, Field
 
 
 class UploadSerializer(Serializer):
+    name = Field()
+    description = Field()
     source_file = FileField()
     target_file = FileField()
     class Meta:

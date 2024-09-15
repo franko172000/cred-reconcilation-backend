@@ -20,6 +20,7 @@ class UploadView(GenericAPIView):
     def post(self, request, *args, **kwargs):
         reconcile_service = reconciliation_service.ReconciliationService()
         source_file = request.FILES.get('source_file')
+        print(request.FILES)
         target_file = request.FILES.get('target_file')
         data = reconcile_service.reconcile(source_file, target_file)
 

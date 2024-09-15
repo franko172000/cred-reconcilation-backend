@@ -7,3 +7,5 @@ django-injector
 inject
 pandas
 dateparser
+python-dotenv
+mysqlclient
