@@ -15,6 +15,7 @@ class Upload(models.Model):
 
     class Meta:
         db_table = 'uploads'
+        ordering = ['-id']
 
 
 class Record(models.Model):

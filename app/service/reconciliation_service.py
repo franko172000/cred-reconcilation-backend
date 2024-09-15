@@ -1,8 +1,9 @@
-from django.core.files.storage import default_storage
-import pandas as pd
 import os
+from typing import List
+
 import dateparser
-from rest_framework.exceptions import NotFound
+import pandas as pd
+from django.core.files.storage import default_storage
 
 from app.models import Upload, Record
 
@@ -95,6 +96,9 @@ class ReconciliationService:
             "missing_in_source": missing_in_source,
             "discrepancies": discrepancies,
         }
+
+    def list_uploads(self) -> List[Upload]:
+        return self.upload_model.all().order_by('-id')
 
     def __normalise_data(self, csv_data):
         data_dict = csv_data.to_dict(orient='records')
