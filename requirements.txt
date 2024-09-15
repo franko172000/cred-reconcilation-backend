@@ -3,3 +3,6 @@ djangorestframework
 pyyaml
 requests
 django-cors-headers
+django-injector
+inject
+pandas
