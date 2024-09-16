@@ -6,10 +6,11 @@ import pandas as pd
 from django.core.files.storage import default_storage
 
 from app.models import Upload, Record
+from app.utils.validators import validate_file_type, validate_columns
 
 
 class ReconciliationService:
-
+    __allowed_columns = ['id', 'name', 'account_number', 'transaction_date', 'balance', 'description']
     def __init__(self):
         self.upload_model = Upload.objects
         self.record_model = Record.objects
@@ -18,6 +19,11 @@ class ReconciliationService:
     def reconcile(self, data):
         source_file = data['source_file']
         target_file = data['target_file']
+        # file validation
+        validate_file_type(file=source_file, allowed_mime_types=['text/csv'])
+        validate_file_type(file=target_file, allowed_mime_types=['text/csv'])
+
+        # Save file to folder
         source_file_path = default_storage.save('uploads/' + source_file.name, source_file)
         target_file_path = default_storage.save('uploads/' + target_file.name, target_file)
 
@@ -25,10 +31,18 @@ class ReconciliationService:
         source_df = pd.read_csv(source_file_path)
         target_df = pd.read_csv(target_file_path)
 
-        upload = self.upload_model.create(source_file=source_file_path, target_file=target_file_path, title=data['title'],
-                                 description=data['description'])
+        source_columns = source_df.columns.tolist()
+        target_columns = target_df.columns.tolist()
+
+        # validate source and target column
+        validate_columns(columns=source_columns, allowed_columns=self.__allowed_columns)
+        validate_columns(columns=target_columns, allowed_columns=self.__allowed_columns)
+
+        upload = self.upload_model.create(source_file=source_file_path, target_file=target_file_path,
+                                          title=data['title'],
+                                          description=data['description'])
         # Perform reconciliation
-        report = self.reconcile_data(upload.id,source_df, target_df)
+        report = self.reconcile_data(upload.id, source_df, target_df)
 
         # update upload record
         upload.refresh_from_db()
@@ -44,7 +58,7 @@ class ReconciliationService:
         os.remove(source_file_path)
         os.remove(target_file_path)
 
-        return report
+        return upload
 
     def reconcile_data(self, upload_id, source, target):
         source_df = pd.DataFrame(self.__normalise_data(source))
@@ -127,6 +141,3 @@ class ReconciliationService:
     def __format_date(self, date_str) -> str:
         parsed_date = dateparser.parse(date_str)
         return parsed_date.strftime("%Y-%m-%d")
-
-    def __validate_columns(self, columns):
-        pass

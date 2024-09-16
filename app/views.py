@@ -1,7 +1,7 @@
+from rest_framework import status
 from rest_framework.generics import GenericAPIView, RetrieveAPIView
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
-from django.db.models import Count
 
 from .models import Upload
 from .serializers import upload_serializer
@@ -21,11 +21,8 @@ class UploadView(GenericAPIView):
     def post(self, request, *args, **kwargs):
         reconcile_service = reconciliation_service.ReconciliationService()
         data = reconcile_service.reconcile(request.data)
-
-        return Response(data)
-
-    def get_object(self):
-        return self.queryset.get(pk=self.kwargs['pk'])
+        serializer = self.serializer_class(data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class UploadDetailView(RetrieveAPIView):
